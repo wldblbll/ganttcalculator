@@ -82,9 +82,6 @@ def set_Categorie(row):
 
 
 def set_TechnoMoule(row):
-    """
-        Cette fonction a été simplifiée car le besoin Moules par technologies est remonté par un autre canal (cf commentaire Fabrice du 01Jun16)
-    """
     if row.ProcessType == "C3M":
         TechnoMoule = "C3M / Prime EB"
         if row.zone == "ADN":
@@ -94,7 +91,10 @@ def set_TechnoMoule(row):
     elif row.DesignType == "OFFTAKE":
         TechnoMoule = "EB / PA / TR / EB Lite"
     else:
-        TechnoMoule = "EI"
+        if row.MoldTechno.count("EB")+row.MoldTechno.count("PA")+row.MoldTechno.count("TR")>0:
+            TechnoMoule = "EB / PA / TR / EB Lite"
+        else:
+            TechnoMoule = "EI"
     return TechnoMoule
 
 
@@ -113,8 +113,6 @@ def get_milestones_dates(gc_params, current_project):
     out_of_zonelaunch = "Yes" if current_project.LaunchScope == "WW" else "No"
     nb_molds_per_loop_balise = 4
     Mold_entries_per_week_in_G2LC = current_project.Mold_entries_per_week_in_G2LC
-    # DOC : Dans l'ancien sizingtool : nb_molds_per_loop_market = current_project.TdGMold
-    # La colonne TdGMold n'etant plus remplie on va calculer le nombre de TdGMold en sommant le nombre de briques TdG
     nb_molds_per_loop_market = (
         current_project.TdGMain_Loop1
         + current_project.TdGMain_Loop2
@@ -122,8 +120,6 @@ def get_milestones_dates(gc_params, current_project):
         + current_project.TdGSec_Loop2
     )
     nb_molds_decli = current_project.MoulistStudies
-    # DOC : dans l'ancien ST : nb_indus_pdt = current_project.Declis
-    # Dans le nouveau ST on considère qu'on a autant d'indus que : nbMoldDecli + MultisourcedCai
     nb_indus_pdt = current_project.MoulistStudies + current_project.MultiSourcedCai
     dev_zone = set_Design_Zone_for_gantt_calculator(current_project.zone)
     (
@@ -190,15 +186,6 @@ def calculate_milestones_dates(
     nb_indus_pdt,
     AVG_INDUS_CAPACITY_PER_WEEK_AND_PER_PLANT=1,
 ):
-    """
-        category: 
-                "Clouté / Studded tire"
-                "Winter"
-                "Commercial"
-                "All season / summer / SUV"
-        nb_molds_per_loop_market = NbMouleTdG
-        
-    """
 
     project_phases = ["B0 - B1", "B1 - B2", "B2 - B3", "G0 - G1", "G1 - G2", "G2 - LC"]
 
@@ -213,28 +200,9 @@ def calculate_milestones_dates(
         switch_for_project_type = 2
     else:
         switch_for_project_type = 0
-    # ### Gantt params preparation
-    # Fixed Params
-    #gc_params = p.read_excel(
-    #    os.path.join(os.path.dirname(__file__), "gantt_calculator_params_v1.xlsx"),
-    #    sheet_name="params",
-    #    keep_default_na=False,
-    #    na_values=[""],
-    #)  # keep_default_na prevent pandas from reading NA(North America) as NaN (Not a Number)
     gc_params.loc[:, "type_param"] = gc_params.type_param.fillna(method="ffill")
 
-    # Calculated params
-    ### ZONEs params
-    # 7 weeks =
-    # +2 for materials
-    #   1 - Fab Z
-    #   1 - Logistic
-    # +4 weeks / EL
-    #   1 - Prep between P2 and EL
-    #   1 - Prep EL and tires released
-    #   1  - Mount mold
-    #   1 - Logistics for 32 P
-    # +1 week for SI
+
     gc_params.loc[
         (gc_params.type_param == "Zone") & (gc_params.value_param == "Asia"), "G1 - G2"
     ] = (14 if project_type == "Market (2-loops)" else 7)
@@ -327,8 +295,6 @@ def calculate_milestones_dates(
         project_phases,
     ]
     timing_impacts.loc["garniture_type", :] = impact.values[0]
-    ## Il y a une erreur dans le ganttCalculator : il prend dans la cellule O20 ou on va chercher les infos G1-G2 ald G2-LC
-    ## La ligne ci-dessous est pour s'aligner au GantCalcultor avec son erreur pour pouvoir comparer. une fois la validation du nouvelle Algo est faite on peut supprimer la ligne ci-dessous
     timing_impacts.loc["garniture_type", "G2 - LC"] = timing_impacts.loc[
         "garniture_type", "G1 - G2"
     ]
@@ -347,9 +313,6 @@ def calculate_milestones_dates(
         3 / 12 * 365 / 7 if project_type == "Off-Take" else 0
     )
     if project_type == "B+M":
-        # Impact of : balise_molds
-        # Walid : Je choisi de prendre le meme nombre de moules dans les deux boucles entre B1-B2
-        # Walid : J'impose qu'un balise = 2 boucles (à faire évoluer plus tard si besoin)
         BALISE_NB_LOOPS = 2
         # =SI(G29<4;0;ARRONDI.SUP(G29/2;0)*2-4)
         impact = (
@@ -358,9 +321,7 @@ def calculate_milestones_dates(
             else arrondi_sup(nb_molds_per_loop_balise / 2.0) * 2 - 4
         )
         timing_impacts.loc["balise_molds", "B1 - B2"] = BALISE_NB_LOOPS * impact
-        # Impact of nb_KM_technos :
         timing_impacts.loc["nb_KM_technos", "B1 - B2"] = 1
-    # Impact of : market_molds
     # LOOP_1
     # =SI(G19=W31;0;SI(G37<6;0;ARRONDI.SUP(G37/2;0)*2-6))
     if project_type == "Maintenance":
@@ -380,12 +341,10 @@ def calculate_milestones_dates(
     else:
         impact = 0
     timing_impacts.loc["market_molds_loop_2", "G1 - G2"] = impact
-    # Impact of : g2_lc_indus_type
     # =SI(G19=W21;-5;RECHERCHEV(G41;W69:AC70;7))
     timing_impacts.loc["proto_then_pre_serie", "G2 - LC"] = (
         -5 if project_type == "Maintenance" else 0
     )
-    # Impact of : nb_molds_decli
     # =SI(G19=W24;(G42-1)/8*4.3;(G42-1)/G43+SI(G20=W62;1;2))
     param1 = 1 if garniture_type == "EI" else 2
     impact = (
@@ -433,7 +392,6 @@ def calculate_milestones_dates(
         param1 * 7 / 365 * 12 * multiplier_relating_to_project_type["G1 - G2"]
     )
 
-    # =SI(G19=W24;SOMME(O28;O19;O42;O18);(SOMME(O17:O41)+GRANDE.VALEUR(O42:O46;1)))*7/365*12*AC16
     if project_type == "Off-Take":
         param1 = (
             timing_impacts.loc["buffer", "G2 - LC"]
@@ -442,7 +400,6 @@ def calculate_milestones_dates(
             + timing_impacts.loc["molds_decli", "G2 - LC"]
         )
     else:
-        # We can have the same results with a different formula : sum(a1+a2+...+aN-2)+max(aN-1, aN) replaced by sum(a1+...aN)-min(aN-1, aN)
         param1 = timing_impacts.sum()["G2 - LC"] - min(
             timing_impacts.loc["molds_decli", "G2 - LC"],
             timing_impacts.loc["indus_pdt", "G2 - LC"],
@@ -450,10 +407,7 @@ def calculate_milestones_dates(
     Stage_duration_without_tire_type_adjustment.loc[:, "G2 - LC"] = (
         param1 * 7 / 365 * 12 * multiplier_relating_to_project_type["G2 - LC"]
     )
-    #Stage_duration_without_tire_type_adjustment
 
-    # Category : Calculated params
-    # "B0 - B1" =(10-X15)*X16*365/(12*7)
     def calcul_category_param_for_balise(leadtime, phase):
         res = (
             (leadtime - Stage_duration_without_tire_type_adjustment[phase])
@@ -490,19 +444,12 @@ def calculate_milestones_dates(
     gc_params.loc[
         (gc_params.type_param == "category") & (winter_indexes), "G2 - LC"
     ] = calcul_category_param_for_balise(param, "G2 - LC")
-    #gc_params.loc[(gc_params.type_param == "category")]
 
-    # Category : time impact
-    # =RECHERCHEV(G16;W42:AC45;2)
     timing_impacts.loc["category", :] = gc_params.loc[
         (gc_params.type_param == "category") & (gc_params.value_param == category),
         project_phases,
     ].values[0]
 
-    # Stage duration  - with tire type and vacaton adjustment
-    # Stage_duration_with_adjustment = p.Series(index=project_phases)
-    # =(X15+J16*12*7/365)*X12 for : "B0 - B1", "B1 - B2", "B2 - B3"
-    # balise_phases = ["B0 - B1", "B1 - B2", "B2 - B3"]
     Stage_duration_with_adjustment = (
         Stage_duration_without_tire_type_adjustment
         + timing_impacts.loc["category", :] * 12 * 7 / 365
@@ -529,11 +476,6 @@ def calculate_milestones_dates(
     G1_date = G2_date - timedelta(days=gap_Milestones["G1 - G2"].values[0] * 365 / 12)
     G0_date = G1_date - timedelta(days=gap_Milestones["G0 - G1"].values[0] * 365 / 12)
 
-    # Balise
-    # B2 : =SI(X13=0;"n/a";SI(X13=2;G15-H6*365/12;F9+SI(OU(SI(G16=W43;VRAI;FAUX);SI(G16=W45;VRAI;FAUX);;);89;28)))
-    # We will implement only B+M / Market cases :
-    # F9+SI(OU(SI(G16=W43;VRAI;FAUX);SI(G16=W45;VRAI;FAUX);;);89;28)
-    # F9 + 89 si winter/cloute sinon 28
     B2_date = (
         G0_date + timedelta(days=89)
         if category in ["Winter", "Cloute / Studded tire"]
@@ -554,25 +496,19 @@ def calculate_milestones_dates(
         lc_date,
     )  # , timing_impacts
 
-
+def convert_time_delta_to_months(x):
+    return x.days*12./365.
 def convert_time_delta_to_weeks(x):
     return x.days/7
-
-def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2):
-    # We calculate diferently the G2-LC duration
-
+def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2, status=False):
     G1G2_duration = G2-G1
     G0G1_duration = G1-G0
     B2B3_duration = B3-B2
     B1B2_duration = B2-B1
     B0B1_duration = B1-B0
 
-    # New delay added to G1-G2 to take into account time needed for RI 
-    # Les RI sont absentes des Gantt Standard et font en réaliter perdre jusqu'à deux mois sur les jalons avant G2. (entre 1000 et 3000 pneus).
-    # La RI permet de démontrer la faisabilité industrielle et passer l'ATG3 ce qui permet de passer le G2
     G1G2_RI_delay = datetime.timedelta(days=int(6 * 7))
 
-    # New duration of a decli: take into account regulatory tests
     one_decli_duration = 66 # in weeks
     new_g2_lc = (test_project.Declis/test_project.Mold_entries_per_week_in_G2LC)-1+one_decli_duration
  
@@ -584,15 +520,29 @@ def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2):
     new_B0 = new_B1 - B0B1_duration
     new_B3 = new_B2 + B2B3_duration
 
+    date_may_G1_year = datetime.date(year=new_G1.year, month=5, day=1) #p.to_datetime(f'01/05/{new_G1.year}', format='%d/%m/%Y') # datetime.datetime(year=new_G1.year, month=5, day=1, hour=0, minute=0) #
+    if new_G1>=date_may_G1_year and str(test_project.GanttCategory).count("WINTER"):
+        if status:
+            status.warning("Milestones were shifted because Snow is on the critical path")
+        #import pdb; pdb.set_trace()
+        delta = new_G1-date_may_G1_year
+        G2 = new_G2 - delta
+        new_G1 = new_G1 - delta
+        new_G0 = new_G0 - delta
+        new_B3 = new_B3 - delta
+        new_B2 = new_B2 - delta
+        new_B1 = new_B1 - delta
+        new_B0 = new_B0 - delta
+
     return new_B0, new_B1, new_B2, new_B3, new_G0, new_G1, new_G2
 
 
-
-streamlit.title("Gantt calculator")
+streamlit.title("Gantt calculator (B2C 4W)")
+status = streamlit.empty()
+CommercialLaunchDate = streamlit.sidebar.date_input("CommercialLaunchDate", value=p.to_datetime('01/05/2023', format='%d/%m/%Y'))
 zone = streamlit.sidebar.selectbox("Zone", ["EUR", "E2A", "ADS", "ADN", "CHN", "MSA"])
 DesignType = streamlit.sidebar.selectbox("DesignType", ["CLEAN SHEET", "REFRESH", "EXTENSION"])
 BaliseType = streamlit.sidebar.selectbox("BaliseType", ["B+M", "M"])
-CommercialLaunchDate = streamlit.date_input("CommercialLaunchDate", value=p.to_datetime('01/05/2023', format='%d/%m/%Y'))
 GanttCategory = streamlit.sidebar.selectbox("GanttCategory", ["WINTER", "SUMMER", "A/S"])
 LaunchScope = streamlit.sidebar.selectbox("LaunchScope", ["WW", "Local"])
 ProcessType = streamlit.sidebar.selectbox("ProcessType", ["MANU", "C3M"])
@@ -600,7 +550,9 @@ MoldTechno = streamlit.sidebar.selectbox("MoldTechno", ["EI", "C3M", "PA/EB/TR"]
 TdGMain_Loop1 = streamlit.sidebar.number_input("TdG Loop1", min_value=0, max_value=10, value=1)
 TdGMain_Loop2 = streamlit.sidebar.number_input("TdG Loop2", min_value=0, max_value=10, value=1)
 Declis = streamlit.sidebar.number_input("Nbr of Indus", min_value=0, max_value=200, value=10)
-Mold_entries_per_week_in_G2LC = streamlit.sidebar.number_input("Mold_entries_per_week_in_G2LC", min_value=1, max_value=5, value=1)
+CAIs_pourcents = streamlit.sidebar.number_input("% of CAIs at the LC", min_value=0, max_value=100, value=100)
+
+Mold_entries_per_week_in_G2LC = streamlit.sidebar.number_input("Mold_entries_per_week_in_G2LC", min_value=1.0, max_value=5.0, value=1., step=0.1)
 
 params_filename = streamlit.file_uploader('Params file:', type="xlsx")
 
@@ -658,11 +610,11 @@ if params_filename:
 
     def get_durations(B0, B1, B2, B3, G0, G1, G2, LC):
         return p.Series({
-        "G2-LC":convert_time_delta_to_weeks(LC-G2),
-        "G1-G2":convert_time_delta_to_weeks(G2-G1),
-        "G0-G1":convert_time_delta_to_weeks(G1-G0),
-        "B1-B2":convert_time_delta_to_weeks(B2-B1),
-        "B0-B1":convert_time_delta_to_weeks(B1-B0),
+        "G2-LC":convert_time_delta_to_months(LC-G2),
+        "G1-G2":convert_time_delta_to_months(G2-G1),
+        "G0-G1":convert_time_delta_to_months(G1-G0),
+        "B1-B2":convert_time_delta_to_months(B2-B1),
+        "B0-B1":convert_time_delta_to_months(B1-B0),
         })
 
     std_durations = p.DataFrame(get_durations(B0, B1, B2, B3, G0, G1, G2, LC))
@@ -673,5 +625,6 @@ if params_filename:
     plot_df = p.concat([std_durations, new_durations], axis=0, sort=False).reset_index()
     plot_df.columns = ["Project phase", "duration", "Gantt"]
     #streamlit.bar_chart(plot_df)
-    fig = px.bar(plot_df, x="Project phase", y="duration", color="Gantt", orientation='v', barmode='group') #, color=color, text=color)
+    fig = px.bar(plot_df, x="Project phase", y="duration", color="Gantt", orientation='v', barmode='group', text="duration") #, color=color, text=color)
+    fig.update_traces(texttemplate='%{text:.1f} mois', textposition='outside')
     streamlit.plotly_chart(fig)
