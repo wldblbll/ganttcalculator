@@ -577,8 +577,8 @@ if params_filename:
      'TdGSec_Loop1':0,
      'TdGSec_Loop2':0,
      'TdG_MAT_Loop2':0,
-     'Declis': Declis,
-     'MoulistStudies':Declis, # Consider same number than decli to simplify
+     'Declis': Declis*CAIs_pourcents/100.,
+     'MoulistStudies':Declis*CAIs_pourcents/100., # Consider same number than decli to simplify
      'MultiSourcedCai':0,
      'Mold_entries_per_week_in_G2LC': Mold_entries_per_week_in_G2LC,
      })
