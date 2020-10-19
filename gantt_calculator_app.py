@@ -509,7 +509,7 @@ def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2, statu
 
     G1G2_RI_delay = datetime.timedelta(days=int(6 * 7))
 
-    one_decli_duration = 66 # in weeks
+    one_decli_duration = 61
     new_g2_lc = (test_project.Declis/test_project.Mold_entries_per_week_in_G2LC)-1+one_decli_duration
  
     new_G2 = LC-datetime.timedelta(days=int(new_g2_lc * 7))
