@@ -520,7 +520,10 @@ def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2, statu
     new_B0 = new_B1 - B0B1_duration
     new_B3 = new_B2 + B2B3_duration
 
-    date_may_G1_year = datetime.date(year=new_G1.year, month=5, day=1) #p.to_datetime(f'01/05/{new_G1.year}', format='%d/%m/%Y') # datetime.datetime(year=new_G1.year, month=5, day=1, hour=0, minute=0) #
+    if new_G1.month>=5:
+        date_may_G1_year = datetime.date(year=new_G1.year, month=5, day=1) #p.to_datetime(f'01/05/{new_G1.year}', format='%d/%m/%Y') # datetime.datetime(year=new_G1.year, month=5, day=1, hour=0, minute=0) #
+    else:
+        date_may_G1_year = datetime.date(year=new_G1.year-1, month=5, day=1)
     if new_G1>=date_may_G1_year and str(test_project.GanttCategory).count("WINTER"):
         if status:
             status.warning("Milestones were shifted because Snow is on the critical path")
