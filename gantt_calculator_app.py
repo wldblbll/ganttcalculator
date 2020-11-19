@@ -500,45 +500,77 @@ def convert_time_delta_to_months(x):
     return x.days*12./365.
 def convert_time_delta_to_weeks(x):
     return x.days/7
+
+
+
 def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2, status=False):
+    # We calculate diferently the G2-LC duration
+
+    if not status:
+        status = streamlit.empty()
+
     G1G2_duration = G2-G1
     G0G1_duration = G1-G0
     B2B3_duration = B3-B2
     B1B2_duration = B2-B1
     B0B1_duration = B1-B0
 
+    # New delay added to G1-G2 to take into account time needed for RI 
+    # Les RI sont absentes des Gantt Standard et font en réaliter perdre jusqu'à deux mois sur les jalons avant G2. (entre 1000 et 3000 pneus).
+    # La RI permet de démontrer la faisabilité industrielle et passer l'ATG3 ce qui permet de passer le G2
     G1G2_RI_delay = datetime.timedelta(days=int(6 * 7))
 
-    one_decli_duration = 61
-    new_g2_lc = (test_project.Declis/test_project.Mold_entries_per_week_in_G2LC)-1+one_decli_duration
- 
-    new_G2 = LC-datetime.timedelta(days=int(new_g2_lc * 7))
+    # New duration of a decli: take into account regulatory tests
+    one_decli_duration = 61 # in weeks
+    total_decli_duration = (test_project.Declis/test_project.Mold_entries_per_week_in_G2LC)-1+one_decli_duration  # expressed in weeks
+    total_decli_duration_in_months = total_decli_duration / 4.345238095
+    streamlit.write("Total declination duration is %.1f months" % total_decli_duration_in_months)
+
+    ATG2_G2_duration = datetime.timedelta(days=int(2.5 * 30)) 
+    new_ATG_2 = LC - datetime.timedelta(days=int(total_decli_duration * 7))
+    new_G2 = new_ATG_2 + ATG2_G2_duration
+    streamlit.write(f"Declination phase starts just after ATG2 ({new_ATG_2})")
+    streamlit.write(f"G2 milestone is 2,5 months after ATG2 ==> ({new_G2})")
+
+    is_winter_or_AS = str(test_project.GanttCategory).count("WINTER") + str(test_project.GanttCategory).count("A/S")
+    if is_winter_or_AS and new_ATG_2.month!=4:
+        previous_ATG_2 = new_ATG_2
+        if new_ATG_2.month>=4:
+            new_ATG_2 = datetime.date(year=new_ATG_2.year, month=4, day=1) #p.to_datetime(f'01/05/{new_G1.year}', format='%d/%m/%Y') # datetime.datetime(year=new_G1.year, month=5, day=1, hour=0, minute=0) #
+        else:
+            new_ATG_2 = datetime.date(year=new_ATG_2.year-1, month=4, day=1)
+        previous_G2 = new_G2
+        new_G2 = new_ATG_2 + ATG2_G2_duration
+        streamlit.markdown(f"**ATG2 should be in April for Winter and A/S:**")
+        streamlit.markdown(f"> ATG2 was shifted from {str(previous_ATG_2)} to {str(new_ATG_2)}. And G2 is shifter from {previous_G2} to {new_G2}")
+
     new_G1 = new_G2 - G1G2_duration - G1G2_RI_delay
+    streamlit.write(f"We add 6 weeks to the G1-G2 phase to take into account the RI. new G1 = {new_G1}")
+    if is_winter_or_AS and (new_G1.month>=7):
+        new_G1_july = datetime.date(year=new_G1.year, month=7, day=1) #p.to_datetime(f'01/05/{new_G1.year}', format='%d/%m/%Y') # datetime.datetime(year=new_G1.year, month=5, day=1, hour=0, minute=0) #
+        streamlit.warning(f"G1 can not be after July for Winter and A/S. G1 was shifted from {str(new_G1)} to {str(new_G1_july)}")
+        new_G1 = new_G1_july
+
+    if is_winter_or_AS and test_project.Declis_pourcents<100:
+        # Adjust the ratio of CAIs available
+        original_nb_decli = test_project.Declis * 100 / test_project.Declis_pourcents
+        #streamlit.write("original number of Decli = %.1f" %  original_nb_decli)
+        atg2_lc_duration = LC - new_ATG_2
+        atg2_lc_duration_weeks = atg2_lc_duration.days/7.
+        #streamlit.write("New ATG2 = "+str(new_ATG_2))
+        #streamlit.write("atg2_lc_duration_months = %.1f" %  (atg2_lc_duration_weeks / 4.345238095))
+        nb_achievable_decli = (atg2_lc_duration_weeks+1-one_decli_duration)*test_project.Mold_entries_per_week_in_G2LC
+        ratio_achievable_declis = min(100, nb_achievable_decli / original_nb_decli* 100)
+        if abs(ratio_achievable_declis - test_project.Declis_pourcents) > 1: # if gap more than 1% show the message below
+            streamlit.success("The new gantt allow to achieve %.1f %% Declinations (original ratio is %.1f %%)" % (ratio_achievable_declis, test_project.Declis_pourcents))
+
     new_G0 = new_G1 - G0G1_duration
     new_B2 = new_G1
     new_B1 = new_B2 - B1B2_duration
     new_B0 = new_B1 - B0B1_duration
     new_B3 = new_B2 + B2B3_duration
 
-    if new_G1.month>=5:
-        date_may_G1_year = datetime.date(year=new_G1.year, month=5, day=1) #p.to_datetime(f'01/05/{new_G1.year}', format='%d/%m/%Y') # datetime.datetime(year=new_G1.year, month=5, day=1, hour=0, minute=0) #
-    else:
-        date_may_G1_year = datetime.date(year=new_G1.year-1, month=5, day=1)
-    if new_G1>=date_may_G1_year and str(test_project.GanttCategory).count("WINTER"):
-        if status:
-            status.warning("Milestones were shifted because Snow is on the critical path")
-        #import pdb; pdb.set_trace()
-        delta = new_G1-date_may_G1_year
-        G2 = new_G2 - delta
-        new_G1 = new_G1 - delta
-        new_G0 = new_G0 - delta
-        new_B3 = new_B3 - delta
-        new_B2 = new_B2 - delta
-        new_B1 = new_B1 - delta
-        new_B0 = new_B0 - delta
-
     return new_B0, new_B1, new_B2, new_B3, new_G0, new_G1, new_G2
-
 
 streamlit.title("Gantt calculator (B2C 4W)")
 status = streamlit.empty()
@@ -580,6 +612,7 @@ if params_filename:
      'TdGSec_Loop1':0,
      'TdGSec_Loop2':0,
      'TdG_MAT_Loop2':0,
+     'Declis_pourcents':CAIs_pourcents,
      'Declis': Declis*CAIs_pourcents/100.,
      'MoulistStudies':Declis*CAIs_pourcents/100., # Consider same number than decli to simplify
      'MultiSourcedCai':0,
