@@ -632,7 +632,7 @@ if params_filename:
 
     streamlit.write("The total duration of One declination is %d weeks" % one_decli_duration)
 
-    B0, B1, B2, B3, G0, G1, G2, LC = get_milestones_dates(test_project)
+    B0, B1, B2, B3, G0, G1, G2, LC = get_milestones_dates(gc_params, test_project)
     new_B0, new_B1, new_B2, new_B3, new_G0, new_G1, new_G2 = get_NEW_milestones_dates(one_decli_duration, test_project, LC, B0, B1, B2, B3, G0, G1, G2, status)
 
     milestones_std_GC = p.Series({
