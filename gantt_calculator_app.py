@@ -585,7 +585,8 @@ TdGMain_Loop1 = streamlit.sidebar.number_input("TdG Loop1", min_value=0, max_val
 TdGMain_Loop2 = streamlit.sidebar.number_input("TdG Loop2", min_value=0, max_value=10, value=1)
 Declis = streamlit.sidebar.number_input("Nbr of Indus", min_value=0, max_value=200, value=10)
 CAIs_pourcents = streamlit.sidebar.number_input("% of CAIs at the LC", min_value=0, max_value=100, value=100)
-
+is_full_regulatory_test = streamlit.sidebar.checkbox("Regulatory tests include DOT or CCC", True)
+is_labelling_mandatory = streamlit.sidebar.checkbox("Include 4 month constraint for Labelling", True)
 Mold_entries_per_week_in_G2LC = streamlit.sidebar.number_input("Mold_entries_per_week_in_G2LC", min_value=1.0, max_value=5.0, value=1., step=0.1)
 
 params_filename = streamlit.file_uploader('Params file:', type="xlsx")
