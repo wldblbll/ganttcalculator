@@ -503,7 +503,7 @@ def convert_time_delta_to_weeks(x):
 
 
 
-def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2, status=False):
+def get_NEW_milestones_dates(one_decli_duration, test_project, LC, B0, B1, B2, B3, G0, G1, G2, status=False):
     # We calculate diferently the G2-LC duration
 
     if not status:
@@ -521,7 +521,6 @@ def get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2, statu
     G1G2_RI_delay = datetime.timedelta(days=int(6 * 7))
 
     # New duration of a decli: take into account regulatory tests
-    one_decli_duration = 61 # in weeks
     total_decli_duration = (test_project.Declis/test_project.Mold_entries_per_week_in_G2LC)-1+one_decli_duration  # expressed in weeks
     total_decli_duration_in_months = total_decli_duration / 4.345238095
     streamlit.write("Total declination duration is %.1f months" % total_decli_duration_in_months)
@@ -620,8 +619,20 @@ if params_filename:
      })
 
 
-    B0, B1, B2, B3, G0, G1, G2, LC = get_milestones_dates(gc_params, test_project)
-    new_B0, new_B1, new_B2, new_B3, new_G0, new_G1, new_G2 = get_NEW_milestones_dates(test_project, LC, B0, B1, B2, B3, G0, G1, G2, status)
+    one_decli_duration = 47 # in weeks
+    if is_full_regulatory_test:
+        one_decli_duration = one_decli_duration + 10
+        streamlit.write("Regulatory tests take 16 weeks (to take into account DOT or CCC)")
+    else:
+        streamlit.write("Regulatory tests take 6 weeks (no DOT or CCC are included)")
+    if is_labelling_mandatory:
+        streamlit.write("We switch from 3 months (RAG only) to 4 months (RAG and Labelling constraint)")
+        one_decli_duration = one_decli_duration + 4
+
+    streamlit.write("The total duration of One declination is %d weeks" % one_decli_duration)
+
+    B0, B1, B2, B3, G0, G1, G2, LC = get_milestones_dates(test_project)
+    new_B0, new_B1, new_B2, new_B3, new_G0, new_G1, new_G2 = get_NEW_milestones_dates(one_decli_duration, test_project, LC, B0, B1, B2, B3, G0, G1, G2, status)
 
     milestones_std_GC = p.Series({
         "B0":str(B0),
