@@ -1,1 +1,1 @@
-# ganttcalculator
+# ganttcalculator [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/wldblbll/ganttcalculator/master/gantt_calculator_app.py)
