@@ -561,6 +561,7 @@ if params_filename:
         sheet_name="params",
         keep_default_na=False,
         na_values=[""],
+        engine="openpyxl"
     )
 
     test_project = p.Series({'zone': zone,
