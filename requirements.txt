@@ -5,3 +5,4 @@ pandas
 streamlit
 plotly
 xlrd
+openpyxl
