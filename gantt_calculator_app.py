@@ -1,6 +1,7 @@
 import plotly.express as px
 import streamlit
 import pandas as p
+import datetime
 
 from gantt_calculator import (
     get_new_milestones_dates,
@@ -27,7 +28,7 @@ def convert_time_delta_to_weeks(x):
 
 streamlit.title("Gantt calculator")
 status = streamlit.empty()
-CommercialLaunchDate = streamlit.sidebar.date_input("CommercialLaunchDate", value=p.to_datetime('01/05/2023', format='%d/%m/%Y'))
+CommercialLaunchDate = streamlit.sidebar.date_input("CommercialLaunchDate", value=p.Timestamp(datetime.date(2023, 5, 1)))
 zone = streamlit.sidebar.selectbox("Zone", ["EUR", "E2A", "ADS", "ADN", "CHN", "MSA"])
 DesignType = streamlit.sidebar.selectbox("DesignType", ["CLEAN SHEET", "REFRESH", "EXTENSION"])
 BaliseType = streamlit.sidebar.selectbox("BaliseType", ["B+M", "M"])
@@ -108,9 +109,17 @@ if params_filename:
         "B0-B1":convert_time_delta_to_months(B1-B0),
         })
 
+    #import pdb; pdb.set_trace()
     std_durations = p.DataFrame(get_durations(B0, B1, B2, B3, G0, G1, G2, LC))
     std_durations.loc[:,'Gantt'] = "Standard"
-    new_durations = p.DataFrame(get_durations(new_B0, new_B1, new_B2, new_B3, new_G0, new_G1, new_G2, LC))
+    new_durations = p.DataFrame(get_durations(p.to_datetime(new_B0),
+                                            p.to_datetime(new_B1),
+                                            p.to_datetime(new_B2),
+                                            p.to_datetime(new_B3),
+                                            p.to_datetime(new_G0),
+                                            p.to_datetime(new_G1),
+                                            p.to_datetime(new_G2),
+                                            p.to_datetime(LC)))
     new_durations.loc[:,'Gantt'] = "NEW"
 
     plot_df = p.concat([std_durations, new_durations], axis=0, sort=False).reset_index()
