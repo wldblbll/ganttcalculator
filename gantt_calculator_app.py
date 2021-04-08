@@ -2,7 +2,7 @@ import plotly.express as px
 import streamlit
 import pandas as p
 
-from sizing_tool.gantt_calculator import (
+from gantt_calculator import (
     get_new_milestones_dates,
     get_milestones_dates,
     load_gantt_calculator_params
