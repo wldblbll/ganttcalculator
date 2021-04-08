@@ -3,7 +3,6 @@ import os
 from math import ceil as arrondi_sup
 import pandas as p
 import datetime
-from datetime import timedelta
 import streamlit
 
 __version__ = 1.0
@@ -441,12 +440,12 @@ def calculate_milestones_dates(
         Stage_duration_with_adjustment * multiplier_relating_to_project_type
     )
 
-    from datetime import timedelta
+    #from datetime import timedelta
 
     # gaps are expressed in month
-    G2_date = lc_date - timedelta(days=gap_Milestones["G2 - LC"].values[0] * 365 / 12)
-    G1_date = G2_date - timedelta(days=gap_Milestones["G1 - G2"].values[0] * 365 / 12)
-    G0_date = G1_date - timedelta(days=gap_Milestones["G0 - G1"].values[0] * 365 / 12)
+    G2_date = lc_date - p.Timedelta(days=gap_Milestones["G2 - LC"].values[0] * 365 / 12)
+    G1_date = G2_date - p.Timedelta(days=gap_Milestones["G1 - G2"].values[0] * 365 / 12)
+    G0_date = G1_date - p.Timedelta(days=gap_Milestones["G0 - G1"].values[0] * 365 / 12)
 
     # Balise
     # B2 : =SI(X13=0;"n/a";SI(X13=2;G15-H6*365/12;F9+SI(OU(SI(G16=W43;VRAI;FAUX);SI(G16=W45;VRAI;FAUX);;);89;28)))
@@ -454,14 +453,14 @@ def calculate_milestones_dates(
     # F9+SI(OU(SI(G16=W43;VRAI;FAUX);SI(G16=W45;VRAI;FAUX);;);89;28)
     # F9 + 89 si winter/cloute sinon 28
     B2_date = (
-        G0_date + timedelta(days=89)
+        G0_date + p.Timedelta(days=89)
         if category in ["Winter", "Cloute / Studded tire"]
-        else G0_date + timedelta(days=89)
+        else G0_date + p.Timedelta(days=89)
     )
     # B3 : =SI(X13=0;"n/a";G5+H6*365/12)
-    B3_date = B2_date + timedelta(days=gap_Milestones["B2 - B3"].values[0]) * 365 / 12
-    B1_date = B2_date - timedelta(days=gap_Milestones["B1 - B2"].values[0]) * 365 / 12
-    B0_date = B1_date - timedelta(days=gap_Milestones["B0 - B1"].values[0]) * 365 / 12
+    B3_date = B2_date + p.Timedelta(days=gap_Milestones["B2 - B3"].values[0]) * 365 / 12
+    B1_date = B2_date - p.Timedelta(days=gap_Milestones["B1 - B2"].values[0]) * 365 / 12
+    B0_date = B1_date - p.Timedelta(days=gap_Milestones["B0 - B1"].values[0]) * 365 / 12
     return (
         B0_date,
         B1_date,
@@ -660,3 +659,41 @@ def get_new_milestones_dates(gc_params, test_project, status=False, is_full_regu
     new_B3 = new_B2 + B2B3_duration
 
     return new_B0, new_B1, new_B2, new_B3, new_G0, new_G1, new_G2, LC
+
+
+
+"""if __name__ == "__main__":
+    # INPUTS :
+    lc_date = p.to_datetime("01/05/2021", format="%d/%m/%Y")  # G15
+    category = "Winter"  # G16
+    dev_zone = "Europe"  # G17
+    out_of_zonelaunch = True  # G18
+    project_type = "B+M"  # G19
+    garniture_type = "C3M / Prime EB - Europe"  # G20
+    nb_molds_per_loop_balise = 4  # G29 et G33
+    nb_molds_per_loop_market = (
+        10  # G37 et G39 : Le sizingTool rempli cette valeur avec le NbMouleTdG
+    )
+    nb_molds_decli = 10  # G42
+    nb_indus_pdt = 10  # G44
+    (
+        B0_date,
+        B1_date,
+        B2_date,
+        B3_date,
+        G0_date,
+        G1_date,
+        G2_date,
+    ) = calculate_milestones_dates(
+        lc_date,
+        category,
+        dev_zone,
+        out_of_zonelaunch,
+        project_type,
+        garniture_type,
+        nb_molds_per_loop_balise,
+        nb_molds_per_loop_market,
+        nb_molds_decli,
+        nb_indus_pdt,
+    )
+"""
